@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Weather & Air Quality Dashboard</title>
+
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  
+  <!-- Bootstrap Icons CDN -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+  <style>
+    /* Full-screen responsive background */
+    body {
+      min-height: 100vh;
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      background-attachment: fixed;
+      position: relative;
+      transition: background-image 0.5s ease-in-out;
+    }
+
+    /* Backdrop overlay for text legibility */
+    .bg-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(15, 23, 42, 0.65);
+      backdrop-filter: blur(4px);
+      z-index: 0;
+    }
+
+    /* Glassmorphism card styling */
+    .glass-card {
+      background: rgba(30, 41, 59, 0.75) !important;
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    }
+
+    /* Container sits on top of all visual effects */
+    .main-container {
+      position: relative;
+      z-index: 2;
+    }
+
+    /* ================= Weather Particles & Animations ================= */
+    .weather-effect {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* Hide effects when user turns the toggle off */
+    body.no-effects .weather-effect {
+      display: none !important;
+    }
+
+    /* 1. Rain Animation */
+    .weather-effect.rain {
+      background-image: 
+        linear-gradient(to bottom, rgba(255, 255, 255, 0), rgba(174, 214, 241, 0.6) 75%, rgba(255, 255, 255, 0)),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0), rgba(174, 214, 241, 0.4) 60%, rgba(255, 255, 255, 0));
+      background-size: 2px 50px, 3px 70px;
+      background-repeat: repeat;
+      animation: rainDrop 0.65s linear infinite;
+    }
+
+    @keyframes rainDrop {
+      0% { background-position: 0px 0px, 100px 0px; }
+      100% { background-position: 25px 650px, 125px 650px; }
+    }
+
+    /* 2. Snow Animation */
+    .weather-effect.snow {
+      background-image: 
+        radial-gradient(3px 3px at 40px 60px, rgba(255, 255, 255, 0.95), transparent),
+        radial-gradient(4px 4px at 150px 180px, rgba(255, 255, 255, 0.8), transparent),
+        radial-gradient(2px 2px at 280px 100px, rgba(255, 255, 255, 0.9), transparent),
+        radial-gradient(5px 5px at 350px 240px, rgba(255, 255, 255, 0.7), transparent);
+      background-size: 400px 400px;
+      background-repeat: repeat;
+      animation: snowFall 6s linear infinite;
+    }
+
+    @keyframes snowFall {
+      0% { background-position: 0 0, 0 0, 0 0, 0 0; }
+      50% { background-position: 20px 200px, -20px 200px, 15px 200px, -15px 200px; }
+      100% { background-position: 0 400px, 0 400px, 0 400px, 0 400px; }
+    }
+
+    /* 3. Slow Cloud Shadows */
+    .weather-effect.clouds {
+      width: 200vw;
+      opacity: 0.45;
+      mix-blend-mode: multiply;
+      background: 
+        radial-gradient(circle at 20% 30%, rgba(30, 41, 59, 0.8) 0%, transparent 60%),
+        radial-gradient(circle at 60% 40%, rgba(15, 23, 42, 0.7) 0%, transparent 50%),
+        radial-gradient(circle at 85% 75%, rgba(30, 41, 59, 0.85) 0%, transparent 65%),
+        radial-gradient(circle at 45% 80%, rgba(15, 23, 42, 0.75) 0%, transparent 55%),
+        radial-gradient(circle at 10% 85%, rgba(30, 41, 59, 0.7) 0%, transparent 50%);
+      background-size: 100vw 100vh;
+      background-repeat: repeat-x;
+      animation: moveClouds 45s linear infinite;
+    }
+
+    @keyframes moveClouds {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-100vw); }
+    }
+  </style>
+</head>
+
+<body style="background-image: url('{{ bg_image_url }}');">
+
+  <!-- Dynamic Animated Weather Layer -->
+  {% if weather %}
+    {% if weather.condition in ['Rain', 'Drizzle', 'Thunderstorm'] %}
+      <div class="weather-effect rain"></div>
+    {% elif weather.condition == 'Snow' %}
+      <div class="weather-effect snow"></div>
+    {% elif weather.condition in ['Clouds', 'Mist', 'Fog', 'Haze'] %}
+      <div class="weather-effect clouds"></div>
+    {% endif %}
+  {% endif %}
+
+  <!-- Contrast Dark Overlay -->
+  <div class="bg-overlay"></div>
+
+  <!-- Main Container -->
+  <div class="container py-3 main-container">
+
+    <!-- Navbar -->
+    <nav class="navbar border-bottom border-secondary shadow-sm mb-4 bg-transparent">
+      <div class="container-fluid d-flex justify-content-between align-items-center">
+        <span class="navbar-brand mb-0 h1 text-white">
+          <i class="bi bi-cloud-sun text-info me-2"></i>Weather & AQI
+        </span>
+
+        <div class="d-flex align-items-center gap-3">
+          <!-- Animation Toggle Switch -->
+          <div class="form-check form-switch m-0 text-white">
+            <input class="form-check-input" type="checkbox" role="switch" id="effectsToggle" checked>
+            <label class="form-check-label small" for="effectsToggle">
+              <i class="bi bi-stars text-warning me-1"></i>Effects
+            </label>
+          </div>
+
+          <!-- Light/Dark Mode Switch -->
+          <button class="btn btn-outline-secondary btn-sm rounded-pill px-3" id="themeToggleBtn" type="button">
+            <i class="bi bi-moon-stars-fill" id="themeIcon"></i>
+            <span class="ms-1 d-none d-sm-inline" id="themeText">Dark Mode</span>
+          </button>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Search Section -->
+    <div class="row justify-content-center">
+      <div class="col-md-7 col-lg-6">
+
+        <div class="card glass-card shadow-lg mb-4 text-white">
+          <div class="card-body p-4">
+            <h5 class="card-title text-center mb-3">Live City Weather & Air Quality</h5>
+            
+            <form method="POST" id="weatherForm">
+              <input type="hidden" name="lat" id="latInput">
+              <input type="hidden" name="lon" id="lonInput">
+
+              <div class="input-group mb-3">
+                <span class="input-group-text bg-dark border-secondary text-secondary">
+                  <i class="bi bi-search"></i>
+                </span>
+                <input 
+                  type="text" 
+                  name="city" 
+                  id="cityInput"
+                  class="form-control bg-dark text-white border-secondary" 
+                  placeholder="Enter city (e.g., Tokyo, London, Mumbai)..."
+                >
+                <button class="btn btn-primary px-4" type="submit" id="submitBtn">
+                  <span class="spinner-border spinner-border-sm d-none" id="btnSpinner" role="status"></span>
+                  <span id="btnText">Check</span>
+                </button>
+              </div>
+
+              <button class="btn btn-outline-light btn-sm w-100" type="button" id="geoBtn">
+                <i class="bi bi-geo-alt-fill text-danger me-1"></i>
+                <span id="geoBtnText">Use My Current Location</span>
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <!-- Error Notification -->
+        {% if error %}
+          <div class="alert alert-danger shadow-sm border-0 d-flex align-items-center" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i>
+            <div>{{ error }}</div>
+          </div>
+        {% endif %}
+
+        <!-- Weather and AQI Metrics Display -->
+        {% if weather and aqi %}
+          <div class="card glass-card shadow-lg text-white mb-4">
+            <div class="card-body p-4">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <h3 class="card-title mb-0">
+                  <i class="bi bi-geo-alt-fill text-danger me-1"></i>{{ weather.city }}, {{ weather.country }}
+                </h3>
+                <span class="badge py-2 px-3" style="background-color: {{ aqi.color }}; font-size: 0.85rem;">
+                  AQI: {{ aqi.label }} (Level {{ aqi.index }})
+                </span>
+              </div>
+              <p class="text-light-emphasis mb-3">
+                <i class="bi bi-cloud-sun me-1"></i>{{ weather.description }}
+              </p>
+
+              <div class="row g-3">
+                <div class="col-6">
+                  <div class="p-3 rounded bg-dark bg-opacity-50 border border-secondary">
+                    <span class="text-muted d-block small"><i class="bi bi-thermometer-half text-danger"></i> Temperature</span>
+                    <strong class="fs-5">{{ weather.temp }} °C</strong>
+                    <div class="small text-muted">Feels like {{ weather.feels_like }} °C</div>
+                  </div>
+                </div>
+
+                <div class="col-6">
+                  <div class="p-3 rounded bg-dark bg-opacity-50 border border-secondary">
+                    <span class="text-muted d-block small"><i class="bi bi-droplet-half text-primary"></i> Humidity</span>
+                    <strong class="fs-5">{{ weather.humidity }}%</strong>
+                    <div class="small text-muted">Moisture level</div>
+                  </div>
+                </div>
+
+                <div class="col-6">
+                  <div class="p-3 rounded bg-dark bg-opacity-50 border border-secondary">
+                    <span class="text-muted d-block small"><i class="bi bi-wind text-info"></i> Wind Speed</span>
+                    <strong class="fs-5">{{ weather.wind_speed }} m/s</strong>
+                    <div class="small text-muted">Current velocity</div>
+                  </div>
+                </div>
+
+                <div class="col-6">
+                  <div class="p-3 rounded bg-dark bg-opacity-50 border border-secondary">
+                    <span class="text-muted d-block small"><i class="bi bi-lungs text-warning"></i> PM2.5 / PM10</span>
+                    <strong class="fs-5">{{ aqi.pm2_5 }} / {{ aqi.pm10 }}</strong>
+                    <div class="small text-muted">µg/m³ pollutants</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        {% endif %}
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Interactive JavaScript logic -->
+  <script>
+    // 1. Submit Button Spinner Logic
+    const weatherForm = document.getElementById("weatherForm");
+    const submitBtn = document.getElementById("submitBtn");
+    const btnSpinner = document.getElementById("btnSpinner");
+    const btnText = document.getElementById("btnText");
+
+    weatherForm.addEventListener("submit", function () {
+      btnSpinner.classList.remove("d-none");
+      btnText.textContent = " Loading...";
+      submitBtn.setAttribute("disabled", "true");
+    });
+
+    // 2. Geolocation API Logic
+    const geoBtn = document.getElementById("geoBtn");
+    const geoBtnText = document.getElementById("geoBtnText");
+    const latInput = document.getElementById("latInput");
+    const lonInput = document.getElementById("lonInput");
+    const cityInput = document.getElementById("cityInput");
+
+    geoBtn.addEventListener("click", () => {
+      if (!navigator.geolocation) {
+        alert("Geolocation is not supported by your browser.");
+        return;
+      }
+      geoBtnText.textContent = "Detecting location...";
+      geoBtn.setAttribute("disabled", "true");
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          latInput.value = pos.coords.latitude;
+          lonInput.value = pos.coords.longitude;
+          cityInput.value = "";
+          weatherForm.submit();
+        },
+        () => {
+          geoBtn.removeAttribute("disabled");
+          geoBtnText.textContent = "Use My Current Location";
+          alert("Could not retrieve your location. Please type a city name.");
+        }
+      );
+    });
+
+    // 3. Dark/Light Mode Toggle Logic
+    const htmlElement = document.documentElement;
+    const themeBtn = document.getElementById("themeToggleBtn");
+    const themeIcon = document.getElementById("themeIcon");
+    const themeText = document.getElementById("themeText");
+
+    const savedTheme = localStorage.getItem("bsTheme") || "dark";
+    applyTheme(savedTheme);
+
+    themeBtn.addEventListener("click", () => {
+      const currentTheme = htmlElement.getAttribute("data-bs-theme");
+      const newTheme = currentTheme === "dark" ? "light" : "dark";
+      applyTheme(newTheme);
+      localStorage.setItem("bsTheme", newTheme);
+    });
+
+    function applyTheme(theme) {
+      htmlElement.setAttribute("data-bs-theme", theme);
+      if (theme === "dark") {
+        themeIcon.className = "bi bi-sun-fill text-warning";
+        themeText.textContent = "Light Mode";
+      } else {
+        themeIcon.className = "bi bi-moon-stars-fill";
+        themeText.textContent = "Dark Mode";
+      }
+    }
+
+    // 4. Effects Toggle Switch Logic
+    const effectsToggle = document.getElementById("effectsToggle");
+    const savedEffectsState = localStorage.getItem("weatherEffects");
+
+    if (savedEffectsState === "disabled") {
+      document.body.classList.add("no-effects");
+      effectsToggle.checked = false;
+    } else {
+      document.body.classList.remove("no-effects");
+      effectsToggle.checked = true;
+    }
+
+    effectsToggle.addEventListener("change", function () {
+      if (this.checked) {
+        document.body.classList.remove("no-effects");
+        localStorage.setItem("weatherEffects", "enabled");
+      } else {
+        document.body.classList.add("no-effects");
+        localStorage.setItem("weatherEffects", "disabled");
+      }
+    });
+  </script>
+</body>
+</html>
